@@ -3,81 +3,62 @@ package com.codegym.productspringboot.controller;
 import com.codegym.productspringboot.model.Product;
 import com.codegym.productspringboot.service.product.IProductService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Optional;
 
 @Controller
+@RestController
+@RequestMapping("product")
+@CrossOrigin("*")
 public class ProductController {
-
     @Autowired
     private IProductService productService;
 
-    @GetMapping("/create-product")
-    public ModelAndView showCreateForm() {
-        ModelAndView modelAndView = new ModelAndView("/product/create");
-        modelAndView.addObject("product", new Product());
-        return modelAndView;
-    }
-
-    @PostMapping("/create-product")
-    public ModelAndView saveProduct(@ModelAttribute("product") Product product) {
-        productService.save(product);
-        ModelAndView modelAndView = new ModelAndView("/customer/create");
-        modelAndView.addObject("product", new Product());
-        modelAndView.addObject("message", "New product created successfully");
-        return modelAndView;
-    }
-
-    @GetMapping("/products")
-    public ModelAndView listProducts() {
-        ModelAndView modelAndView = new ModelAndView("/product/list");
-        modelAndView.addObject("products", productService.findAll());
-        return modelAndView;
-    }
-
-    @GetMapping("/edit-product/{id}")
-    public ModelAndView showEditForm(@PathVariable Long id) {
-        Optional<Product> product = productService.findById(id);
-        if (product.isPresent()) {
-            ModelAndView modelAndView = new ModelAndView("/product/edit");
-            modelAndView.addObject("product", product.get());
-            return modelAndView;
-        } else {
-            return new ModelAndView("error-404");
+    @GetMapping("/list")
+    public ResponseEntity<Iterable<Product>> findAllProducts() {
+        Iterable<Product> products = productService.findAll();
+        if (!products.iterator().hasNext()) {
+            new ResponseEntity<>(HttpStatus.NO_CONTENT);
         }
+        return new ResponseEntity<>(products, HttpStatus.OK);
     }
 
-    @PostMapping("/edit-product")
-    public ModelAndView updateProduct(@ModelAttribute("product") Product product) {
-        productService.save(product);
-        ModelAndView modelAndView = new ModelAndView("/product/edit");
-        modelAndView.addObject("product", product);
-        modelAndView.addObject("message", "Product updated successfully");
-        return modelAndView;
-    }
-
-    @GetMapping("/delete-product/{id}")
-    public ModelAndView showDeleteForm(@PathVariable Long id) {
-        Optional<Product> product = productService.findById(id);
-        if (product.isPresent()) {
-            ModelAndView modelAndView = new ModelAndView("/product/delete");
-            modelAndView.addObject("product", product.get());
-            return modelAndView;
-
-        } else {
-            return new ModelAndView("/error.404");
+    @PutMapping("/edit/{id}")
+    public ResponseEntity<Product> editProduct(@PathVariable Long id, @RequestBody Product product) {
+        Optional<Product> productOptional = productService.findById(id);
+        if (!productOptional.isPresent()) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
+        product.setId(id);
+
+        productService.save(product);
+        return new ResponseEntity<>(product, HttpStatus.OK);
     }
 
-    @PostMapping("/delete-product")
-    public String deleteProduct(@ModelAttribute("product") Product product) {
-        productService.remove(product.getId());
-        return "redirect:products";
+    @DeleteMapping("/delete/{id}")
+    public ResponseEntity<Product> deleteProduct(@PathVariable Long id) {
+        Optional<Product> productOptional = productService.findById(id);
+        if (!productOptional.isPresent()) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+        productService.remove(id);
+        return new ResponseEntity<>(productOptional.get(), HttpStatus.NO_CONTENT);
     }
+
+    @PostMapping("/create")
+    public ResponseEntity<Product> createProduct(@RequestBody Product product) {
+        return new ResponseEntity<>(productService.save(product), HttpStatus.CREATED);
+    }
+
+    @GetMapping("/findById/{id}")
+    public ResponseEntity<Product> getProductById(@PathVariable Long id) {
+        Optional<Product> productOptional = productService.findById(id);
+        return productOptional.map(product -> new ResponseEntity<>(product, HttpStatus.OK)).orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND));
+    }
+
 }
